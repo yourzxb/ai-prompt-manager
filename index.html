@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI词库管理器</title>
+    <link rel="stylesheet" href="styles.css?v=20260521-ui-v2" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="词库导航">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">AI</div>
+          <div>
+            <h1>AI词库管理器</h1>
+            <p>离线提示词工作台</p>
+          </div>
+        </div>
+
+        <label class="search-box" for="searchInput">
+          <span aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" placeholder="搜索标题、标签或内容" autocomplete="off" />
+        </label>
+
+        <div class="section-head">
+          <h2>分类</h2>
+          <button class="icon-button" id="addCategoryBtn" type="button" title="新增分类" aria-label="新增分类">＋</button>
+        </div>
+
+        <button class="category-item active" type="button" data-category="__all__">
+          <span>全部词库</span>
+          <strong id="allCount">0</strong>
+        </button>
+        <button class="category-item" type="button" data-category="__media__">
+          <span>素材归档</span>
+          <strong id="mediaCount">0</strong>
+        </button>
+        <nav class="category-list" id="categoryList" aria-label="自定义分类"></nav>
+
+        <div class="category-actions">
+          <button class="ghost-button" id="renameCategoryBtn" type="button">重命名</button>
+          <button class="ghost-button danger" id="removeCategoryBtn" type="button">删除分类</button>
+        </div>
+
+        <div class="side-tools">
+          <button class="tool-button" id="exportBtn" type="button">
+            <span aria-hidden="true">⇩</span>
+            导出母版
+          </button>
+          <button class="tool-button" id="importFileBtn" type="button">
+            <span aria-hidden="true">⇧</span>
+            导入文件
+          </button>
+          <button class="tool-button" id="restoreSeedBtn" type="button">
+            <span aria-hidden="true">↺</span>
+            恢复内置
+          </button>
+          <input id="fileInput" type="file" accept=".json,.txt,.md,.csv,image/*,video/*" multiple hidden />
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Prompt Library</p>
+            <h2 id="pageTitle">全部提示词</h2>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button" id="themeToggle" type="button" title="切换浅色/深色主题" aria-label="切换主题">☾</button>
+            <button class="ghost-button" id="applyToolBtn" type="button">应用工具</button>
+            <button class="ghost-button" id="importToolBtn" type="button">导入模板</button>
+            <button class="primary-button" id="newPromptBtn" type="button">新增提示词</button>
+          </div>
+        </header>
+
+        <section class="stats-grid" aria-label="词库统计">
+          <div class="stat-tile">
+            <span>模板总数</span>
+            <strong id="statPrompts">0</strong>
+          </div>
+          <div class="stat-tile">
+            <span>分类数量</span>
+            <strong id="statCategories">0</strong>
+          </div>
+          <div class="stat-tile">
+            <span>已收藏</span>
+            <strong id="statFavorites">0</strong>
+          </div>
+          <div class="stat-tile">
+            <span>当前筛选</span>
+            <strong id="statVisible">0</strong>
+          </div>
+        </section>
+
+        <section class="toolbar" aria-label="筛选工具">
+          <div class="segmented" role="group" aria-label="视图筛选">
+            <button class="active" type="button" data-filter="all">全部</button>
+            <button type="button" data-filter="favorite">收藏</button>
+            <button type="button" data-filter="media">图片素材</button>
+            <button type="button" data-filter="workflow">工作流</button>
+          </div>
+          <div class="sort-row">
+            <label for="sortSelect">排序</label>
+            <select id="sortSelect">
+              <option value="updated">最近更新</option>
+              <option value="title">标题 A-Z</option>
+              <option value="category">分类</option>
+              <option value="favorite">收藏优先</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="batch-bar" id="batchBar" aria-live="polite">
+          <span id="selectionText">已选择 0 条</span>
+          <div>
+            <button class="ghost-button" id="selectVisibleBtn" type="button">选择当前结果</button>
+            <button class="ghost-button" id="clearSelectionBtn" type="button">取消选择</button>
+            <button class="ghost-button danger" id="deleteSelectedBtn" type="button">批量删除</button>
+          </div>
+        </section>
+
+        <section class="prompt-grid" id="promptGrid" aria-label="提示词列表"></section>
+      </main>
+
+      <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+
+      <aside class="inspector" id="toolDrawer" aria-label="编辑和应用工具" aria-hidden="true">
+        <div class="panel-tabs" role="tablist" aria-label="工具面板">
+          <button class="active" type="button" data-panel="editor">编辑</button>
+          <button type="button" data-panel="apply">应用</button>
+          <button type="button" data-panel="import">导入</button>
+          <button class="drawer-close" id="closeDrawerBtn" type="button" aria-label="关闭工具面板">×</button>
+        </div>
+
+        <section class="panel active" id="editorPanel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Editor</p>
+              <h3 id="editorTitle">新增提示词</h3>
+            </div>
+            <span class="save-state" id="saveState">本地保存</span>
+          </div>
+
+          <form id="promptForm" class="form-stack">
+            <label>
+              标题
+              <input id="promptTitle" name="title" type="text" placeholder="例如：电商详情页文案生成器" required />
+            </label>
+
+            <label>
+              分类
+              <input id="promptCategory" name="category" type="text" list="categoryOptions" placeholder="例如：营销增长" required />
+              <datalist id="categoryOptions"></datalist>
+            </label>
+
+            <div class="form-row">
+              <label>
+                类型
+                <select id="promptType" name="type">
+                  <option value="文本">文本</option>
+                  <option value="图像">图像</option>
+                  <option value="视频">视频</option>
+                  <option value="工作流">工作流</option>
+                  <option value="素材">素材</option>
+                </select>
+              </label>
+              <label>
+                标签
+                <input id="promptTags" name="tags" type="text" placeholder="逗号分隔" />
+              </label>
+            </div>
+
+            <label>
+              图片/视频链接或本地素材
+              <input id="promptImage" name="imageUrl" type="url" placeholder="https://example.com/reference.mp4" />
+            </label>
+            <figure class="image-preview" id="imagePreview" hidden>
+              <img alt="素材预览" id="previewImage" />
+              <video id="previewVideo" muted loop playsinline controls hidden></video>
+              <figcaption id="previewCaption">素材预览</figcaption>
+            </figure>
+
+            <label>
+              提示词内容
+              <textarea id="promptContent" name="content" rows="12" placeholder="写入可复用提示词、变量说明、输出格式和约束条件" required></textarea>
+            </label>
+
+            <div class="button-row">
+              <button class="primary-button" id="savePromptBtn" type="submit">保存</button>
+              <button class="ghost-button" id="copyPromptBtn" type="button">复制</button>
+              <button class="ghost-button danger" id="deletePromptBtn" type="button">删除</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" id="applyPanel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Apply</p>
+              <h3>应用提示词</h3>
+            </div>
+          </div>
+
+          <div class="selected-card" id="selectedPromptSummary">从中间词库选择一个模板开始应用。</div>
+
+          <label>
+            本次任务或素材说明
+            <textarea id="taskContext" rows="5" placeholder="例如：为一个新中式茶饮品牌生成小红书种草文案"></textarea>
+          </label>
+
+          <div class="form-row">
+            <label>
+              语气
+              <select id="toneSelect">
+                <option value="专业、清晰、可执行">专业清晰</option>
+                <option value="轻松、有亲和力、适合社交媒体">轻松亲和</option>
+                <option value="严谨、结构化、适合团队协作">严谨结构化</option>
+                <option value="创意、画面感强、适合视觉生成">创意视觉</option>
+              </select>
+            </label>
+            <label>
+              输出
+              <select id="formatSelect">
+                <option value="使用标题、要点和清单输出">标题+清单</option>
+                <option value="使用表格输出，便于对比和复用">表格</option>
+                <option value="给出3个不同版本并说明适用场景">多版本</option>
+                <option value="输出可直接复制给AI模型的最终提示词">最终提示词</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            额外约束
+            <input id="extraRules" type="text" placeholder="例如：不超过300字，避免夸张表达" />
+          </label>
+
+          <label>
+            组合后的提示词
+            <textarea id="composedPrompt" rows="10" readonly></textarea>
+          </label>
+
+          <div class="button-row">
+            <button class="primary-button" id="copyComposedBtn" type="button">复制组合提示词</button>
+            <button class="ghost-button" id="copyOriginalBtn" type="button">复制原模板</button>
+          </div>
+        </section>
+
+        <section class="panel" id="importPanel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Import</p>
+              <h3>导入与素材加载</h3>
+            </div>
+          </div>
+
+          <label>
+            粘贴提示词
+            <textarea id="pasteBox" rows="8" placeholder="可粘贴单条提示词；多条内容可用空行或 --- 分隔"></textarea>
+          </label>
+          <label>
+            导入到分类
+            <input id="pasteCategory" type="text" list="categoryOptions" placeholder="例如：个人知识库" />
+          </label>
+          <button class="primary-button full-width" id="pasteImportBtn" type="button">从粘贴内容导入</button>
+
+          <div class="import-card">
+            <strong>电脑文件导入</strong>
+            <p>支持 JSON 母版、TXT、Markdown、CSV、图片和视频文件。</p>
+            <button class="tool-button" id="fileImportPanelBtn" type="button">选择文件</button>
+          </div>
+
+          <div class="import-card">
+            <strong>网络图片/视频链接加载</strong>
+            <input id="remoteImageTitle" type="text" placeholder="素材标题" />
+            <input id="remoteImageUrl" type="url" placeholder="https://example.com/video.mp4" />
+            <button class="tool-button" id="addRemoteImageBtn" type="button">加载为素材</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="github-prompts.js?v=20260521-doubao-v1"></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
