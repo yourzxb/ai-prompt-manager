@@ -1,0 +1,11 @@
+.git
+.DS_Store
+.vercel
+node_modules
+
+*-preview.png
+home-preview.png
+doubao-category-preview.png
+latest-category-preview.png
+skill-category-preview.png
+video-category-preview.png
